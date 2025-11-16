@@ -1,5 +1,7 @@
 import * as Headless from '@headlessui/react'
+// @ts-ignore
 import clsx from 'clsx'
+// @ts-ignore
 import React, { forwardRef } from 'react'
 import { Link } from './link'
 
@@ -158,35 +160,70 @@ const styles = {
   },
 }
 
-type ButtonProps = (
-  | { color?: keyof typeof styles.colors; outline?: never; plain?: never }
-  | { color?: never; outline: true; plain?: never }
-  | { color?: never; outline?: never; plain: true }
-) & { className?: string; children: React.ReactNode } & (
-    | ({ href?: never } & Omit<Headless.ButtonProps, 'as' | 'className'>)
-    | ({ href: string } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>)
-  )
+type ButtonColorVariant =
+    | { color?: keyof typeof styles.colors; outline?: never; plain?: never }
+    | { color?: never; outline: true; plain?: never }
+    | { color?: never; outline?: never; plain: true }
 
-export const Button = forwardRef(function Button(
-  { color, outline, plain, className, children, ...props }: ButtonProps,
-  ref: React.ForwardedRef<HTMLElement>
+type ButtonAsButtonProps = {
+    href?: never
+} & Omit<Headless.ButtonProps, 'as' | 'className'>
+
+type ButtonAsLinkProps = {
+    href: string
+} & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>
+
+export type ButtonProps = ButtonColorVariant & {
+    className?: string
+    children: React.ReactNode
+} & (ButtonAsButtonProps | ButtonAsLinkProps)
+
+type ButtonRef = HTMLButtonElement | HTMLAnchorElement
+
+function isLinkProps(
+    props: ButtonAsButtonProps | ButtonAsLinkProps
+): props is ButtonAsLinkProps {
+    return typeof (props as ButtonAsLinkProps).href === 'string'
+}
+
+
+export const Button = forwardRef<ButtonRef, ButtonProps>(function Button(
+    { color, outline, plain, className, children, ...props },
+    ref
 ) {
-  let classes = clsx(
-    className,
-    styles.base,
-    outline ? styles.outline : plain ? styles.plain : clsx(styles.solid, styles.colors[color ?? 'dark/zinc'])
-  )
+    const classes = clsx(
+        className,
+        styles.base,
+        outline
+            ? styles.outline
+            : plain
+                ? styles.plain
+                : clsx(styles.solid, styles.colors[color ?? 'dark/zinc'])
+    )
 
-  return typeof props.href === 'string' ? (
-    <Link {...props} className={classes} ref={ref as React.ForwardedRef<HTMLAnchorElement>}>
-      <TouchTarget>{children}</TouchTarget>
-    </Link>
-  ) : (
-    <Headless.Button {...props} className={clsx(classes, 'cursor-default')} ref={ref}>
-      <TouchTarget>{children}</TouchTarget>
-    </Headless.Button>
-  )
+    if (isLinkProps(props)) {
+        return (
+            <Link
+                {...props}
+                className={classes}
+                ref={ref as React.ForwardedRef<HTMLAnchorElement>}
+            >
+                <TouchTarget children={undefined}>{children}</TouchTarget>
+            </Link>
+        )
+    }
+
+    return (
+        <Headless.Button
+            {...props}
+            className={clsx(classes, 'cursor-default')}
+            ref={ref as React.ForwardedRef<HTMLButtonElement>}
+        >
+            <TouchTarget children={undefined}>{children}</TouchTarget>
+        </Headless.Button>
+    )
 })
+
 
 /**
  * Expand the hit area to at least 44×44px on touch devices
